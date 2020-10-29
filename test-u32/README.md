@@ -1,7 +1,10 @@
 Run this:
 
 ``` shell
+# If you have Rust:
 ../scripts/run.sh -c test_u32 -n
+# If you don't have Rust:
+../scripts/run.sh -i test_u32.ll
 ```
 
 The output should end like this:
