@@ -1,9 +1,8 @@
-#[no_mangle]
-fn __VERIFIER_error() {}
+extern { fn __VERIFIER_error(); }
 
 pub fn sassert(cond : bool) {
     if ! cond {
-        __VERIFIER_error();
+        unsafe { __VERIFIER_error(); }
     }
 }
 
@@ -13,11 +12,10 @@ pub trait NonDet {
 
 macro_rules! make_nondet {
     ($typ:ty, $ext:ident, $v:expr) => {
-        #[no_mangle]
-        fn $ext() -> $typ { $v }
+        extern { fn $ext() -> $typ; }
         impl NonDet for $typ {
             fn seahorn_nondet() -> Self {
-                $ext()
+                unsafe { $ext() }
             }
         }
     };

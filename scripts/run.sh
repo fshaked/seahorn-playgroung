@@ -92,6 +92,8 @@ parse_cmd()
 
 VCC="$HOME/workspace/rust-verification/verify-c-common"
 TEMPDIR=sea-temp
+RENAMEMAIN=true
+REMOVEVERFUNS=false
 
 # Extract the file name from $1, without leading path and suffix (if any).
 # E.g. 'bname path/to/foo.bar' will echo 'foo'.
@@ -125,7 +127,7 @@ main()
         INPUT="${output}"
     fi
 
-    if [[ ! "${INPUT}" =~ \.main\.ll$ ]]; then
+    if [[ "$RENAMEMAIN" == "true" ]] && [[ ! "${INPUT}" =~ \.main\.(.*\.)*ll$ ]]; then
         output="${TEMPDIR}/$(bname "${INPUT}").main.ll"
         # Rename the mangled main to main (and remove 'internal'); and
         # Comment out the @main function.
@@ -136,7 +138,15 @@ main()
               next; } \
             /define i32 @main/ { m = 1; } \
             m == 1 { print \";\", \$0; if (\$0 == \"}\") m = 0; next; } \
-            /^define [^ ]+ @__VERIFIER_[^(]+()/ { print \"declare\", \$2, \$3, \$4, \$5; v = 1; } \
+            { print \$0; next; }" \
+            "${INPUT}" > "${output}"
+        INPUT="${output}"
+    fi
+
+    if [[ "$REMOVEVERFUNS" == "true" ]] && [[ ! "${INPUT}" =~ \.VERFS\.(.*\.)*ll$ ]]; then
+        output="${TEMPDIR}/$(bname "${INPUT}").VERFS.ll"
+        # Comment out functions that start with __VERIFIER_ (replace with "declare").
+        awk "/^define [^ ]+ @__VERIFIER_[^(]+()/ { print \"declare\", \$2, \$3, \$4, \$5; v = 1; } \
             v == 1 { print \";\", \$0; if (\$0 == \"}\") v = 0; next; } \
             { print \$0; next; }" \
             "${INPUT}" > "${output}"
