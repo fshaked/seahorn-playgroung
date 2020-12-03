@@ -19,6 +19,7 @@ Descritopn...
 -r, --release               when combined with '-c CRATE', build and run SH on the release target.
 -n, --no-lto                Don't add '-Clto' to RUSTFLAGS.
 -i, --input FILE            run SH on FILE.
+-m, --mode MODE
 ENDUSAGE
 }
 
@@ -34,7 +35,7 @@ parse_cmd()
         CMDNAME="$0"
     fi
 
-    if ! args=$(getopt -o 'hc:t:rni:' -l 'help,crate:,test:,release,no-lto,input:' --name "${CMDNAME}" -- "$@"); then
+    if ! args=$(getopt -o 'hc:t:rni:m:' -l 'help,crate:,test:,release,no-lto,input:,mode:' --name "${CMDNAME}" -- "$@"); then
         usage >&2
         exit 2
     fi
@@ -73,7 +74,10 @@ parse_cmd()
                 INPUT="$2"
                 shift 2
                 ;;
-
+            '-m'|'--mode')
+                MODE="$2"
+                shift 2
+                ;;
             '--')
                 shift
                 break
@@ -97,6 +101,7 @@ parse_cmd()
     # Default values:
     : "${TARGET:=debug}"
     : "${LTO:=true}"
+    : "${MODE:=bpf}"
 }
 
 VCC="$HOME/workspace/rust-verification/verify-c-common"
@@ -187,7 +192,14 @@ main()
     fi
 
     # Run SeaHorn
-    sea yama -y "$VCC/seahorn/sea_base.yaml" bpf "${INPUT}" --temp-dir "${TEMPDIR}" "${SEAFLAGS[@]}"
+    case "${MODE}" in
+        'bpf')
+            sea yama -y "$VCC/seahorn/sea_base.yaml" bpf "${INPUT}" --temp-dir "${TEMPDIR}" "${SEAFLAGS[@]}"
+            ;;
+        *)
+            sea "${MODE}" "${INPUT}" --temp-dir "${TEMPDIR}" "${SEAFLAGS[@]}"
+            ;;
+    esac
 }
 
 parse_cmd "$@"

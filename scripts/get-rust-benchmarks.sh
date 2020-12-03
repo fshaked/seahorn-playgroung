@@ -50,11 +50,4 @@ find temp-rust-benchmarks/benchmarks/ -name '*.rs' -print0 |
     done
 rm -rf temp-rust-benchmarks
 
-cat > Makefile <<"EOF"
-logs: $(foreach c,$(wildcard test-crates/*),logs/$(notdir $c).log)
-.PHONY: logs
-
-logs/%.log:
-	mkdir -p "$(dir $@)"
-	{ cd "test-crates/$*" && ../../../scripts/run.sh -n -c "$*" || echo "ERROR"; } >"$@" 2>&1
-EOF
+cp ../scripts/rust-benchmarks.mk Makefile
