@@ -6,5 +6,17 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.dev]
+panic = "abort"
+overflow-checks = true
+lto = true
+
+[features]
+fail0 = []
+fail1 = []
+fail2 = []
+fail3 = []
+fail4 = []
+
 [dependencies]
 seahorn = { path="../frontend" }
