@@ -194,10 +194,15 @@ pp_awk()
     MAIN=main
 }
 
+# Expects test-inkwell to be installed (i.e. 'cargo install --path .')
+TESTINKWELL=test-inkwell
+# As the above takes 5 minutes to build, use the existing debug build instead
+# TESTINKWELL="${HOME}/workspace/rust-verification/rust-verification-tools/test-inkwell/target/debug/test-inkwell"
+
 pp_inkwell()
 {
     output="${TEMPDIR}/$(bname "${INPUT}").ink.ll"
-    { MAIN="$(test-inkwell -o "${output}" "${INPUT}" | tee /dev/fd/3 | sed -n 's/^MAIN: //p')"; } 3>&1
+    { MAIN="$("${TESTINKWELL}" -vv -s -o "${output}" "${INPUT}" | tee /dev/fd/3 | sed -n 's/^MAIN: //p')"; } 3>&1
     SEAFLAGS=(--entry="${MAIN}" "${SEAFLAGS[@]}")
     INPUT="${output}"
 }
