@@ -16,6 +16,7 @@ Descritopn...
 
 -h, --help                  Display this message.
 -c, --crate CRATE           Use cargo to generate bitcode; do some preprocessing; run SH.
+-t. --test TEST
 -f, --features FS           Passed to cargo.
 -n, --no-lto                Don't add '-Clto' to RUSTFLAGS.
 -i, --input FILE            Run SH on FILE.
@@ -35,7 +36,7 @@ parse_cmd()
         CMDNAME="$0"
     fi
 
-    if ! args=$(getopt -o 'hc:f:ni:m:' -l 'help,crate:,features:,no-lto,input:,mode:' --name "${CMDNAME}" -- "$@"); then
+    if ! args=$(getopt -o 'hc:t:f:ni:m:' -l 'help,crate:,test:,features:,no-lto,input:,mode:' --name "${CMDNAME}" -- "$@"); then
         usage >&2
         exit 2
     fi
@@ -53,6 +54,10 @@ parse_cmd()
                 ;;
             '-c'|'--crate')
                 readonly CRATE="$2"
+                shift 2
+                ;;
+            '-t'|'--test')
+                readonly TEST="$2"
                 shift 2
                 ;;
             '-f'|'--features')
@@ -191,27 +196,34 @@ pp_awk()
         INPUT="${output}"
     fi
 
-    MAIN=main
+    ENTRY=main
 }
 
-# Expects test-inkwell to be installed (i.e. 'cargo install --path .')
-TESTINKWELL=test-inkwell
+# Expects rvt-patch-llvm to be installed (i.e. 'cargo install --path .')
+RVTPATCHLLVM=rvt-patch-llvm
 # As the above takes 5 minutes to build, use the existing debug build instead
-# TESTINKWELL="${HOME}/workspace/rust-verification/rust-verification-tools/test-inkwell/target/debug/test-inkwell"
+RVTPATCHLLVM="${HOME}/workspace/rust-verification/rust-verification-tools/rvt-patch-llvm/target/debug/rvt-patch-llvm"
 
-pp_inkwell()
+pp_rvt-patch-llvm()
 {
     output="${TEMPDIR}/$(bname "${INPUT}").ink.ll"
-    { MAIN="$("${TESTINKWELL}" -vv -s -o "${output}" "${INPUT}" | tee /dev/fd/3 | sed -n 's/^MAIN: //p')"; } 3>&1
-    SEAFLAGS=(--entry="${MAIN}" "${SEAFLAGS[@]}")
+    { ENTRY="$("${RVTPATCHLLVM}" -vv -s ${TEST:+-t "${TEST}"} -o "${output}" "${INPUT}" | tee /dev/fd/3 | sed -n 's/^ENTRY: //p')"; } 3>&1
+    SEAFLAGS=(--entry="${ENTRY}" "${SEAFLAGS[@]}")
     INPUT="${output}"
+
+    # output="${TEMPDIR}/$(bname "${INPUT}").opt.ll"
+    # sea opt -o "${output}" -S "${INPUT}"
+    # INPUT="${output}"
 }
+
+CARGO=(cargo)
+# CARGO=(cargo +stage2-for-seahorn -v)
 
 main()
 {
     # Use 'cargo' to generate bitcode
     if [[ -n "$CRATE" ]]; then
-        # cargo clean
+        # "${CARGO[@]}" clean
 
         # Generate bitcode
         RUSTFLAGS="-Cembed-bitcode=yes --emit=llvm-bc ${RUSTFLAGS}"
@@ -233,10 +245,14 @@ main()
         # RUSTFLAGS="-A macro_expanded_macro_exports_accessed_by_absolute_paths ${RUSTFLAGS}"
 
         export RUSTFLAGS
-        if [[ -n "$FEATURES" ]]; then
-            cargo -v build --features "$FEATURES"
+        if [[ -n "${TEST}" ]]; then
+            "${CARGO[@]}" test --no-run
         else
-            cargo -v build
+            if [[ -n "$FEATURES" ]]; then
+                "${CARGO[@]}" build --features "$FEATURES"
+            else
+                "${CARGO[@]}" build
+            fi
         fi
 
         # Find the bitcode that was just generated
@@ -247,7 +263,7 @@ main()
 
     # pp_awk
 
-    pp_inkwell
+    pp_rvt-patch-llvm
 
     # Run SeaHorn
     case "${MODE}" in
